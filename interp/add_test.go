@@ -57,13 +57,28 @@ print(a())
 		"runtime", 7, "cannot add struct mix to a: b (a child of a) already has a field 'y' (from other)")
 }
 
-func TestAddPlacement(t *testing.T) {
-	expectErr(t, "add struct in a function", "struct a\nstruct b\nfn f():\n    add struct b to a", "compile", 4,
-		"'add struct' is a declaration, like struct and impl: put it at the top level of the file")
-	expectErr(t, "add impl in a method", "struct a\nstruct b\nimpl a:\n    fn f(self):\n        add impl b to a", "compile", 5,
-		"'add impl' is a declaration")
-	expectErr(t, "add after ':' on one line", "struct a\nstruct b\nif true: add struct b to a", "syntax", 3, "'add' must start on its own line")
-	expectErr(t, "inside a top-level if", "struct a\nstruct b\nif true:\n    add struct b to a", "compile", 4, "'add struct' is a declaration")
-	expectErr(t, "inside a top-level loop", "struct a\nstruct b\nfor i in 0..2:\n    add impl b to a", "compile", 4, "'add impl' is a declaration")
-	expectErr(t, "inside a lambda", "struct a\nstruct b\nlet f = fn():\n    add struct b to a", "compile", 4, "'add struct' is a declaration")
+func TestAddAnywhere(t *testing.T) {
+	expect(t, "in a function, a block, a lambda and after ':'", `
+struct a
+struct b:
+    let k = 1
+struct c
+impl c:
+    fn hi(self):
+        return "hi"
+struct d
+impl d:
+    fn bye(self):
+        return "bye"
+fn patch():
+    add struct b to a
+patch()
+if true: add impl c to a
+let f = fn():
+    add impl d to a
+f()
+for i in 0..3:
+    add struct b to a
+print(a(), a().hi(), a().bye())
+`, "a(k: 1) hi bye")
 }

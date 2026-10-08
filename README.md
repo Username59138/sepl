@@ -47,9 +47,9 @@ Works now:
 - inheritance: `struct c is a, b`; `add struct s to t` (fields), `add impl s to t[: overrides]` (methods);
   the same field or method reached twice from one origin is fine, two different ones are an error until
   `c` declares its own; `a.method(self)` calls a specific parent's version
-- `add struct` / `add impl` are declarations, like `impl Trait for Type` in Rust: only at the top level of a
-  file, never inside a function, `if` or loop; fields added to a struct also reach the structs that already
-  inherit from it
+- `add struct` / `add impl` work anywhere a statement does (a function, a loop, after `:` on one line); fields
+  added to a struct also reach the structs that already inherit from it, and objects created earlier get them
+  with their defaults
 - traits: operators and protocols are methods. `+ - * / // %` call `plus minus mul div idiv mod`,
   `-x` calls `neg`, `==` calls `eq` (otherwise objects compare field by field), `<` calls `lt`
   (which also gives `> <= >=` and sorting), `x[i]` / `x[i] = v` call `index` / `set_index`,

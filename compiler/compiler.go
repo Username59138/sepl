@@ -587,9 +587,6 @@ func (c *compiler) stmt(s ast.Stmt) {
 		desc, n := c.methods(s.Methods, strings.Join(s.Type.Path, "::"))
 		c.emit(vm.OpImpl, c.constant(vm.Obj(desc), nil), s.At, -1-n)
 	case *ast.AddDecl:
-		if !c.atGlobalLevel() {
-			c.errorf(s.At, "'add %s' is a declaration, like struct and impl: put it at the top level of the file, not inside a function or block", s.Kind)
-		}
 		c.typeRef(s.Source)
 		c.typeRef(s.Target)
 		if s.Kind == token.STRUCT {
