@@ -112,3 +112,7 @@ lists copies 32-byte values; shrinking values to 16 bytes is the next big speed-
 - Indentation is spaces only. A block is `:` plus indented lines, or one statement on the same line.
 - Comparisons do not chain (`a < b < c` is an error); positional arguments come before named ones.
 - `add`, `to`, `is` are contextual words, so `math::add(x, y)` still works.
+
+## License
+
+SEPL is free software under the GNU General Public License v3.0; see [LICENSE](LICENSE).
