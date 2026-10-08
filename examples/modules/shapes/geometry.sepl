@@ -1,0 +1,28 @@
+import math
+
+enum shape:
+    circle(r float)
+    rect(w float, h float)
+    square(side float)
+
+impl shape:
+    fn area(self) float:
+        return match self:
+            shape::circle(r): math::pi * r * r
+            shape::rect(w, h): w * h
+            shape::square(s): _square(s)
+    fn name(self) str:
+        return match self:
+            shape::circle(_): "circle"
+            shape::rect(_, _): "rect"
+            shape::square(_): "square"
+
+# scaled returns result::err for a bad factor instead of stopping the program.
+fn scaled(s shape, factor) result:
+    if type(factor) != "int" and type(factor) != "float":
+        return result::err(f"factor must be a number, not {type(factor)}")
+    return result::ok(s.area() * factor * factor)
+
+# Private: names starting with _ are not exported.
+fn _square(x float) float:
+    return x * x

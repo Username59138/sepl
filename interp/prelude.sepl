@@ -1,0 +1,132 @@
+# The standard traits. Each operator and protocol is a method; a struct
+# declares that it supports one with "add impl plus to point:" (or simply
+# defines the method in its impl). Methods without a body are required.
+
+struct plus
+impl plus:
+    fn plus(self, other)
+
+struct minus
+impl minus:
+    fn minus(self, other)
+
+struct mul
+impl mul:
+    fn mul(self, other)
+
+struct div
+impl div:
+    fn div(self, other)
+
+struct idiv
+impl idiv:
+    fn idiv(self, other)
+
+struct mod
+impl mod:
+    fn mod(self, other)
+
+struct neg
+impl neg:
+    fn neg(self)
+
+# a == b; a != b is its negation. Without eq, objects compare field by field.
+struct eq
+impl eq:
+    fn eq(self, other)
+
+# a < b; also gives >, <= and >=, and makes lists sortable.
+struct lt
+impl lt:
+    fn lt(self, other)
+
+# x[i] and x[i] = v
+struct index
+impl index:
+    fn index(self, i)
+
+struct set_index
+impl set_index:
+    fn set_index(self, i, value)
+
+# x in obj
+struct contains
+impl contains:
+    fn contains(self, x)
+
+# for x in obj: iterates over what iter returns (a list, str, map or range)
+struct iter
+impl iter:
+    fn iter(self)
+
+# print and f-strings
+struct to_str
+impl to_str:
+    fn to_str(self)
+
+# ---------------------------------------------------------------- errors as values
+
+# What x? does next: go on with the value, or return it from the function.
+enum flow:
+    next(value)
+    exit(value)
+
+# x? calls x.try(), which says what to do next.
+struct try
+impl try:
+    fn try(self)
+
+# A function that can fail returns result::ok(value) or result::err(msg).
+enum result:
+    ok(value)
+    err(msg)
+
+add impl try to result:
+    fn try(self):
+        return match self:
+            result::ok(v): flow::next(v)
+            _: flow::exit(self)
+
+impl result:
+    fn is_ok(self):
+        return match self:
+            result::ok(_): true
+            _: false
+    fn is_err(self):
+        return not self.is_ok()
+    # The value, or stop the program if this is an error.
+    fn unwrap(self):
+        return match self:
+            result::ok(v): v
+            result::err(msg): panic(f"unwrap() on an error: {msg}")
+    fn unwrap_or(self, default):
+        return match self:
+            result::ok(v): v
+            _: default
+
+# A value that may be missing.
+enum option:
+    some(value)
+    none
+
+add impl try to option:
+    fn try(self):
+        return match self:
+            option::some(v): flow::next(v)
+            _: flow::exit(self)
+
+impl option:
+    fn is_some(self):
+        return match self:
+            option::some(_): true
+            _: false
+    fn is_none(self):
+        return not self.is_some()
+    fn unwrap(self):
+        return match self:
+            option::some(v): v
+            _: panic("unwrap() on option::none")
+    fn unwrap_or(self, default):
+        return match self:
+            option::some(v): v
+            _: default

@@ -1,0 +1,6 @@
+fn main():
+    let total = 0
+    for i in 0..10000000:
+        if i % 3 == 0:
+            total += i
+    print(total)

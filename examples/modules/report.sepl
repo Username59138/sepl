@@ -1,0 +1,12 @@
+import shapes::geometry as geo
+
+fn print_table(items list):
+    let total := 0.0
+    for s in items:
+        let a = s.area()
+        total += a
+        print(f"{s.name()}: {_round2(a)}")
+    print(f"total: {_round2(total)}")
+
+fn _round2(x float) float:
+    return float(int(x * 100)) / 100

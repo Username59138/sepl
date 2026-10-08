@@ -1,0 +1,51 @@
+import term
+import random
+
+const W = 40
+const H = 20
+
+struct point:
+    let x int
+    let y int
+
+add impl plus to point:
+    fn plus(self, other):
+        return point(x: self.x + other.x, y: self.y + other.y)
+
+fn random_point() point:
+    return point(x: random::int(0..W), y: random::int(0..H))
+
+fn main():
+    let snake = [point(x: 10, y: 10), point(x: 9, y: 10), point(x: 8, y: 10)]
+    let dir := point(x: 1, y: 0)
+    let food := random_point()
+    let score := 0
+
+    while true:
+        let new_dir = match term::key():
+            "up": point(x: 0, y: -1)
+            "down": point(x: 0, y: 1)
+            "left": point(x: -1, y: 0)
+            "right": point(x: 1, y: 0)
+        if new_dir and new_dir + dir != point(x: 0, y: 0):
+            dir = new_dir
+
+        let head = snake[0] + dir
+        if head in snake or head.x not in 0..W or head.y not in 0..H:
+            break
+
+        snake.insert(0, head)
+        if head == food:
+            score += 1
+            food = random_point()
+        else:
+            snake.pop()
+
+        term::clear()
+        print("*", pos: food)
+        for p in snake:
+            print("#", pos: p)
+        print(f"Score: {score}", pos: point(x: 0, y: H))
+        term::sleep(100)
+
+    print(f"Game over! Score: {score}")

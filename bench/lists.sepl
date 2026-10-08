@@ -1,0 +1,12 @@
+fn main():
+    let items = []
+    for i in 0..1000000:
+        items.push(i * 2)
+    let total = 0
+    for x in items:
+        total += x
+    let words = {}
+    for i in 0..200000:
+        let k = str(i % 1000)
+        words[k] = words.get(k, 0) + 1
+    print(total, len(words))

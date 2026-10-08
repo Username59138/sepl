@@ -1,0 +1,14 @@
+# A program split into modules: run it with  sepl examples/modules/main.sepl
+import shapes::geometry as geo
+import report
+
+fn main(args):
+    let items = [
+        geo::shape::circle(r: 1.5),
+        geo::shape::rect(w: 2, h: 3),
+        geo::shape::square(side: 4),
+    ]
+    report::print_table(items)
+
+    # Type annotations are checked: this returns an error instead of a number.
+    print(geo::scaled(items[0], "two"))

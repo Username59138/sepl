@@ -1,0 +1,48 @@
+# Primes with a sieve, word counting and closures.
+
+fn sieve(limit int) list:
+    let is_prime = []
+    for i in 0..limit + 1:
+        is_prime.push(i >= 2)
+    let p = 2
+    while p * p <= limit:
+        if is_prime[p]:
+            let m = p * p
+            while m <= limit:
+                is_prime[m] = false
+                m += p
+        p += 1
+    let primes = []
+    for i in 0..limit + 1:
+        if is_prime[i]:
+            primes.push(i)
+    return primes
+
+fn count_words(text str) map:
+    let counts = {}
+    for word in text.lower().split():
+        counts[word] = counts.get(word, 0) + 1
+    return counts
+
+fn make_greeter(greeting):
+    fn greet(name):
+        return f"{greeting}, {name}!"
+    return greet
+
+fn fizzbuzz(n):
+    return match n % 15:
+        0: "FizzBuzz"
+        3, 6, 9, 12: "Fizz"
+        5, 10: "Buzz"
+        _: str(n)
+
+fn main(args):
+    let limit = if len(args) > 0: int(args[0]) else: 50
+    print(f"primes up to {limit}:", sieve(limit))
+    print(count_words("the cat and the hat and THE bat"))
+    let hello = make_greeter("Hello")
+    print(hello("SEPL"))
+    let out = []
+    for i in 1..16:
+        out.push(fizzbuzz(i))
+    print(out.join(" "))

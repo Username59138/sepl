@@ -1,0 +1,6 @@
+# binaries
+/sepl
+*.exe
+*.test
+*.out
+*.prof
