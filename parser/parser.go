@@ -395,6 +395,9 @@ func (p *parser) parseStmt() ast.Stmt {
 
 // parseSimpleStmt parses a statement that may also follow ':' on one line.
 func (p *parser) parseSimpleStmt() ast.Stmt {
+	if p.isWord("add") && p.peek.Type == token.IDENT && p.peek.Literal == "to" {
+		return p.parseAddTo()
+	}
 	if p.isWord("add") && (p.peek.Type == token.STRUCT || p.peek.Type == token.IMPL) {
 		return p.parseAdd() // also after ':' on one line: if debug: add impl verbose to logger
 	}
@@ -627,37 +630,60 @@ func (p *parser) parseStruct() ast.Stmt {
 		return s // struct without fields: struct minus
 	}
 	p.indented("struct "+name, func() {
-		f := &ast.Field{At: p.tok.Pos}
 		switch p.tok.Type {
-		case token.LET:
-		case token.CONST:
-			f.Const = true
+		case token.LET, token.CONST:
 		case token.FN:
 			p.fail(p.tok.Pos, "methods go into 'impl "+name+":', not into the struct")
 		default:
 			p.fail(p.tok.Pos, "expected a field ('let' or 'const'), found "+p.describe(p.tok))
 		}
-		p.next()
-		f.Name, _ = p.ident("a field name")
-		if p.tok.Type == token.IDENT {
-			f.Type = p.parseAnnotation()
-		}
-		switch p.tok.Type {
-		case token.ASSIGN:
-			p.next()
-			f.Value = p.parseExpr(precLowest)
-		case token.WALRUS:
-			if f.Type != nil || f.Const {
-				p.fail(p.tok.Pos, "':=' is only for 'let' fields without a type")
-			}
-			p.next()
-			f.Value = p.parseExpr(precLowest)
-			f.Infer = true
-		}
-		p.endStmt()
-		s.Fields = append(s.Fields, f)
+		s.Fields = append(s.Fields, p.parseField())
 	})
 	return s
+}
+
+// parseField parses let name [type] [= value | := value] or const ...
+func (p *parser) parseField() *ast.Field {
+	f := &ast.Field{At: p.tok.Pos, Const: p.tok.Type == token.CONST}
+	p.next()
+	f.Name, _ = p.ident("a field name")
+	if p.tok.Type == token.IDENT {
+		f.Type = p.parseAnnotation()
+	}
+	switch p.tok.Type {
+	case token.ASSIGN:
+		p.next()
+		f.Value = p.parseExpr(precLowest)
+	case token.WALRUS:
+		if f.Type != nil || f.Const {
+			p.fail(p.tok.Pos, "':=' is only for 'let' fields without a type")
+		}
+		p.next()
+		f.Value = p.parseExpr(precLowest)
+		f.Infer = true
+	}
+	p.endStmt()
+	return f
+}
+
+// parseAddTo parses add to type: with fields and methods in the block.
+func (p *parser) parseAddTo() ast.Stmt {
+	pos := p.tok.Pos
+	p.next() // add
+	p.next() // to
+	d := &ast.AddToDecl{At: pos, Target: p.parseAnnotation()}
+	p.indented("add to "+d.Target.String(), func() {
+		switch p.tok.Type {
+		case token.LET, token.CONST:
+			d.Fields = append(d.Fields, p.parseField())
+		case token.FN:
+			d.Methods = append(d.Methods, p.parseFn())
+			p.endStmt()
+		default:
+			p.fail(p.tok.Pos, "expected a field ('let' or 'const') or a method ('fn') in 'add to', found "+p.describe(p.tok))
+		}
+	})
+	return d
 }
 
 // parseMethods parses the indented fn list of impl and add impl.

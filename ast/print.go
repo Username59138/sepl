@@ -365,6 +365,16 @@ func (p *printer) node(n Node) {
 		p.w("(add " + kind + " " + typeString(n.Source) + " to " + typeString(n.Target))
 		p.methods(n.Methods)
 		p.w(")")
+	case *AddToDecl:
+		p.w("(add to " + typeString(n.Target))
+		p.depth++
+		for _, f := range n.Fields {
+			p.sep()
+			p.node(f)
+		}
+		p.depth--
+		p.methods(n.Methods)
+		p.w(")")
 	case *EnumDecl:
 		p.w("(enum " + n.Name)
 		if len(n.Parents) > 0 {

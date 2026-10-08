@@ -17,6 +17,7 @@ go build -o sepl ./cmd/sepl
 ./sepl examples/snake.sepl        # the terminal snake game (arrow keys)
 ./sepl examples/shapes.sepl       # enums, match and ?
 ./sepl examples/modules/main.sepl # a program in several files, with type annotations
+./sepl examples/register.sepl     # functions that add fields and methods to types
 ./sepl examples/stdlib.sepl users.json  # files, JSON, regex, time
 ./sepl                            # REPL: type code, see results
 ./sepl dis examples/fact.sepl     # show the bytecode
@@ -52,6 +53,8 @@ Works now:
 - inheritance: `struct c is a, b`; `add struct s to t` (fields), `add impl s to t[: overrides]` (methods);
   the same field or method reached twice from one origin is fine, two different ones are an error until
   `c` declares its own; `a.method(self)` calls a specific parent's version
+- `add to t:` adds fields (`let`, `const`) and methods (`fn`) written in place, with the same rules as
+  `add struct` + `impl`; with a type parameter it makes functions that change types (`examples/register.sepl`)
 - `add struct` / `add impl` work anywhere a statement does (a function, a loop, after `:` on one line); fields
   added to a struct also reach the structs that already inherit from it, and objects created earlier get them
   with their defaults

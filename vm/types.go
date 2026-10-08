@@ -38,6 +38,7 @@ type StructDesc struct {
 	Name     string
 	NParents int
 	Fields   []FieldDesc
+	Anon     bool // the fields of add to T: the struct takes T's name when added
 }
 
 func (*StructDesc) TypeName() string { return "desc" }
@@ -100,6 +101,7 @@ type TypeObj struct {
 	children []*TypeObj // types that copied this one's fields (is, add struct): they get its later fields too
 	extended bool       // SEPL code added methods (matters for builtin types)
 	sealed   bool       // its values never look methods up (nil, fn, type, module): impl and add refuse it
+	anon     bool       // made by add to T: never seen by SEPL code
 
 	isEnum       bool
 	variants     map[string]*VariantInfo
@@ -220,6 +222,7 @@ func asType(v Value, what string) (*TypeObj, error) {
 // makeStruct builds a struct type: inherited fields first, then its own.
 func (vm *VM) makeStruct(d *StructDesc, parents, vals []Value) (Value, error) {
 	t := newType(d.Name)
+	t.anon = d.Anon
 	own := map[string]bool{}
 	for _, f := range d.Fields {
 		own[f.Name] = true
@@ -361,6 +364,14 @@ func (vm *VM) addStruct(src, dst Value) error {
 	if s == t {
 		return errorf("cannot add struct %s to itself", s.Name)
 	}
+	if s.anon { // add to T: the fields belong to T, and so do clashes
+		s.Name = t.Name
+		for k := range s.statics {
+			if _, ok := t.statics[k]; ok {
+				return errorf("%s already has a constant '%s'", t.Name, k)
+			}
+		}
+	}
 	// Plan first: which fields each type gets.
 	type plan struct {
 		t      *TypeObj
@@ -392,8 +403,8 @@ func (vm *VM) addStruct(src, dst Value) error {
 			}
 			got = append(got, f)
 		}
-		if len(got) == 0 {
-			return nil
+		if len(got) == 0 && len(s.statics) == 0 {
+			return nil // nothing new here, so nothing new below either
 		}
 		plans = append(plans, plan{u, got})
 		for _, c := range u.children {

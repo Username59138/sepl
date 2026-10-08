@@ -1,0 +1,34 @@
+# Functions that change types: add to gives any struct new fields and
+# methods, so a repeated "field + behaviour" pair is written once.
+
+struct user:
+    let name = "?"
+struct order:
+    let total = 0
+
+let next_id := 0
+
+# register gives a struct an id, a constant and show(), and returns a
+# function that makes its objects with fresh ids.
+fn register(t type):
+    add to t:
+        let id = 0
+        const KIND = "registered"
+        fn show(self):
+            return f"<{type(self)} #{self.id}: {self}>"
+    return fn():
+        next_id += 1
+        let obj = t()
+        obj.id = next_id
+        return obj
+
+let new_user = register(user)
+let new_order = register(order)
+
+let a = new_user()
+a.name = "ann"
+let o = new_order()
+o.total = 42
+print(a.show())
+print(o.show())
+print(user::KIND, new_user().id)

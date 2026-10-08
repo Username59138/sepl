@@ -422,6 +422,15 @@ type (
 		Methods []*FnDecl
 	}
 
+	// AddToDecl is add to type: fields and methods written in place, without
+	// a struct to take them from.
+	AddToDecl struct {
+		At      token.Pos
+		Target  *TypeExpr
+		Fields  []*Field
+		Methods []*FnDecl
+	}
+
 	// EnumDecl is enum name [is parents]: variants.
 	EnumDecl struct {
 		At       token.Pos
@@ -481,6 +490,7 @@ func (s *FnDecl) Pos() token.Pos       { return s.At }
 func (s *StructDecl) Pos() token.Pos   { return s.At }
 func (s *ImplDecl) Pos() token.Pos     { return s.At }
 func (s *AddDecl) Pos() token.Pos      { return s.At }
+func (s *AddToDecl) Pos() token.Pos    { return s.At }
 func (s *EnumDecl) Pos() token.Pos     { return s.At }
 func (s *ImportStmt) Pos() token.Pos   { return s.At }
 func (s *MacroDecl) Pos() token.Pos    { return s.At }
@@ -498,6 +508,7 @@ func (*FnDecl) stmtNode()       {}
 func (*StructDecl) stmtNode()   {}
 func (*ImplDecl) stmtNode()     {}
 func (*AddDecl) stmtNode()      {}
+func (*AddToDecl) stmtNode()    {}
 func (*EnumDecl) stmtNode()     {}
 func (*ImportStmt) stmtNode()   {}
 func (*MacroDecl) stmtNode()    {}

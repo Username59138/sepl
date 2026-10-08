@@ -586,6 +586,8 @@ func (c *compiler) stmt(s ast.Stmt) {
 		c.typeRef(s.Type)
 		desc, n := c.methods(s.Methods, s.Type.String())
 		c.emit(vm.OpImpl, c.constant(vm.Obj(desc), nil), s.At, -1-n)
+	case *ast.AddToDecl:
+		c.addTo(s)
 	case *ast.AddDecl:
 		c.typeRef(s.Source)
 		c.typeRef(s.Target)
@@ -992,14 +994,35 @@ func literalValue(e ast.Expr) (vm.Value, bool) {
 }
 
 func (c *compiler) structDecl(d *ast.StructDecl) {
-	desc := &vm.StructDesc{Name: d.Name, NParents: len(d.Parents)}
-	for _, p := range d.Parents {
+	c.structValue(&vm.StructDesc{Name: d.Name, NParents: len(d.Parents)}, d.Parents, d.Fields, d.At)
+	c.declare(d.Name, d.At, true)
+}
+
+// addTo compiles add to T: its fields become an unnamed struct that is added
+// to T like add struct, its methods an impl of T.
+func (c *compiler) addTo(d *ast.AddToDecl) {
+	label := "add to " + d.Target.String()
+	if len(d.Fields) > 0 {
+		c.structValue(&vm.StructDesc{Name: label, Anon: true}, nil, d.Fields, d.At)
+		c.typeRef(d.Target)
+		c.emit(vm.OpAddStruct, 0, d.At, -2)
+	}
+	if len(d.Methods) > 0 {
+		c.typeRef(d.Target)
+		desc, n := c.methods(d.Methods, d.Target.String())
+		c.emit(vm.OpImpl, c.constant(vm.Obj(desc), nil), d.At, -1-n)
+	}
+}
+
+// structValue pushes a new struct type made from desc, parents and fields.
+func (c *compiler) structValue(desc *vm.StructDesc, parents []*ast.TypeExpr, fields []*ast.Field, at token.Pos) {
+	for _, p := range parents {
 		c.typeRef(p)
 	}
 	seen := map[string]bool{}
-	for _, f := range d.Fields {
+	for _, f := range fields {
 		if seen[f.Name] {
-			c.errorf(f.At, "field '%s' is declared twice in struct %s", f.Name, d.Name)
+			c.errorf(f.At, "field '%s' is declared twice in %s", f.Name, desc.Name)
 		}
 		seen[f.Name] = true
 		fd := vm.FieldDesc{Name: f.Name}
@@ -1019,7 +1042,7 @@ func (c *compiler) structDecl(d *ast.StructDecl) {
 				// never shared between objects.
 				fd.Mode = vm.FieldThunk
 				body := &ast.Block{Colon: f.At, Stmts: []ast.Stmt{&ast.ReturnStmt{At: f.Value.Pos(), Value: f.Value}}}
-				c.function(d.Name+"."+f.Name, nil, nil, body, f.At)
+				c.function(desc.Name+"."+f.Name, nil, nil, body, f.At)
 			}
 		}
 		switch {
@@ -1032,8 +1055,7 @@ func (c *compiler) structDecl(d *ast.StructDecl) {
 		desc.Fields = append(desc.Fields, fd)
 	}
 	n := desc.Pushed()
-	c.emit(vm.OpStruct, c.constant(vm.Obj(desc), nil), d.At, 1-n)
-	c.declare(d.Name, d.At, true)
+	c.emit(vm.OpStruct, c.constant(vm.Obj(desc), nil), at, 1-n)
 }
 
 func (c *compiler) enumDecl(d *ast.EnumDecl) {

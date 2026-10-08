@@ -496,3 +496,9 @@ func TestAnnotationExpressions(t *testing.T) {
 	prog(t, "let y type(x) = 1", "(let y (call type x) = 1)")
 	prog(t, "fn f(a, b type(a)) type(a):\n    return b", "(fn f (a b:(call type a)) -> (call type a) (do (return b)))")
 }
+
+func TestAddTo(t *testing.T) {
+	prog(t, "add to type(p):\n    let id = 0\n    fn f(self): return 1",
+		"(add to (call type p) (let id = 0) (fn f (self) (do (return 1))))")
+	parseErr(t, "add to p:\n    x = 1", 2, 5, "expected a field ('let' or 'const') or a method ('fn') in 'add to'")
+}
