@@ -69,6 +69,9 @@ func typeString(t *TypeExpr) string {
 	if t == nil {
 		return ""
 	}
+	if t.Expr != nil {
+		return String(t.Expr)
+	}
 	return strings.Join(t.Path, "::")
 }
 

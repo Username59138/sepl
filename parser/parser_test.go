@@ -491,3 +491,8 @@ func TestFnLiterals(t *testing.T) {
 	expr(t, "f(fn(x): x, 2)", "(call f (fn (x) (do (return x))) 2)")
 	parseErr(t, "let f = fn x: x", 1, 12, "expected '(' after 'fn'")
 }
+
+func TestAnnotationExpressions(t *testing.T) {
+	prog(t, "let y type(x) = 1", "(let y (call type x) = 1)")
+	prog(t, "fn f(a, b type(a)) type(a):\n    return b", "(fn f (a b:(call type a)) -> (call type a) (do (return b)))")
+}

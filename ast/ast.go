@@ -44,10 +44,13 @@ type Block struct {
 
 func (b *Block) Pos() token.Pos { return b.Colon }
 
-// TypeExpr is a type annotation: int, point, net::request.
+// TypeExpr is a type annotation: int, point, net::request. In variables,
+// parameters, results and fields it can also be an expression that gives a
+// type, such as type(x); then Expr is set and Path holds its leading name.
 type TypeExpr struct {
 	At   token.Pos
 	Path []string
+	Expr Expr
 }
 
 func (t *TypeExpr) Pos() token.Pos { return t.At }

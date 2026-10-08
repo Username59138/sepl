@@ -35,6 +35,8 @@ Works now:
 - no implicit conversions: `"5" + 1` is an error; `str()`, `int()`, `float()` convert
 - `type(x)` gives the type itself: `type(1) == int`, `type(p) == point`, `type(int) == type`; it prints as
   its name (`int`), and comparing it with a str (`type(x) == "int"`) is an error that says what to write
+- an annotation can be any expression that gives a type: `let y type(x) = ...`, `fn same(a, b type(a))`,
+  `let s types[0]`; it is computed where a named type would be looked up
 - `let`, `const`, block scopes, closures (each loop iteration gets its own variable)
 - `if` and `match` as statements and expressions; match on values, several values, ranges, `_`
 - `while`, `for ... in` over lists, strings, maps, ranges; `break`, `continue`

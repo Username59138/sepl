@@ -456,7 +456,7 @@ func (p *parser) parseLet() ast.Stmt {
 	name, _ := p.ident("a variable name after 'let'")
 	s := &ast.LetStmt{At: pos, Name: name}
 	if p.tok.Type == token.IDENT {
-		s.Type = p.parseType()
+		s.Type = p.parseAnnotation()
 	}
 	switch p.tok.Type {
 	case token.ASSIGN:
@@ -478,7 +478,7 @@ func (p *parser) parseConst() ast.Stmt {
 	name, _ := p.ident("a constant name after 'const'")
 	s := &ast.ConstStmt{At: pos, Name: name}
 	if p.tok.Type == token.IDENT {
-		s.Type = p.parseType()
+		s.Type = p.parseAnnotation()
 	}
 	if p.tok.Type == token.WALRUS {
 		p.fail(p.tok.Pos, "a const never changes, so write 'const "+name+" = ...'")
@@ -517,6 +517,22 @@ func (p *parser) parseType() *ast.TypeExpr {
 	return t
 }
 
+// parseAnnotation parses the type of a variable, parameter, result or field:
+// a type name, or an expression that gives a type, such as type(x) or
+// types[0]. impl, add and is take only names (parseType).
+func (p *parser) parseAnnotation() *ast.TypeExpr {
+	t := p.parseType()
+	switch p.tok.Type {
+	case token.LPAREN, token.LBRACKET, token.DOT:
+		var x ast.Expr = &ast.Ident{At: t.At, Name: t.Path[0]}
+		for _, part := range t.Path[1:] {
+			x = &ast.Scope{At: t.At, X: x, Name: part}
+		}
+		t.Expr = p.parsePostfix(x)
+	}
+	return t
+}
+
 func (p *parser) parseTypeList() []*ast.TypeExpr {
 	list := []*ast.TypeExpr{p.parseType()}
 	for p.tok.Type == token.COMMA {
@@ -542,7 +558,7 @@ func (p *parser) parseParams(variadic bool) []*ast.Param {
 		}
 		param.Name, _ = p.ident("a parameter name")
 		if p.tok.Type == token.IDENT {
-			param.Type = p.parseType()
+			param.Type = p.parseAnnotation()
 		}
 		if len(list) > 0 && list[len(list)-1].Variadic {
 			p.fail(list[len(list)-1].At, "the '...' parameter must be the last one")
@@ -562,7 +578,7 @@ func (p *parser) parseFn() *ast.FnDecl {
 	name, _ := p.ident("a function name after 'fn'")
 	fn := &ast.FnDecl{At: pos, Name: name, Params: p.parseParams(true)}
 	if p.tok.Type == token.IDENT {
-		fn.Result = p.parseType()
+		fn.Result = p.parseAnnotation()
 	}
 	if p.tok.Type == token.COLON || p.tok.Type == token.NEWLINE && p.peek.Type == token.INDENT {
 		fn.Body = p.parseBlock("the function signature")
@@ -581,7 +597,7 @@ func (p *parser) parseFnLit() ast.Expr {
 	}
 	fn := &ast.FnLit{At: pos, Params: p.parseParams(true)}
 	if p.tok.Type == token.IDENT {
-		fn.Result = p.parseType()
+		fn.Result = p.parseAnnotation()
 	}
 	fn.Body = p.parseBlock("the parameters of fn")
 	if fn.Body.Inline {
@@ -624,7 +640,7 @@ func (p *parser) parseStruct() ast.Stmt {
 		p.next()
 		f.Name, _ = p.ident("a field name")
 		if p.tok.Type == token.IDENT {
-			f.Type = p.parseType()
+			f.Type = p.parseAnnotation()
 		}
 		switch p.tok.Type {
 		case token.ASSIGN:

@@ -953,6 +953,10 @@ func importName(s *ast.ImportStmt) string {
 
 // typeRef pushes the type named by a type annotation: point, net::request.
 func (c *compiler) typeRef(t *ast.TypeExpr) {
+	if t.Expr != nil { // let y type(x): computed when the annotation is checked
+		c.expr(t.Expr)
+		return
+	}
 	c.loadName(t.Path[0], t.At)
 	for _, part := range t.Path[1:] {
 		c.emit(vm.OpScope, c.strConst(part), t.At, 0)
