@@ -41,8 +41,12 @@ type VM struct {
 
 	// Builtin types; SEPL code can add methods to them.
 	tInt, tFloat, tStr, tBool, tList, tMap, tRange *TypeObj
-	epoch                                          int  // changes whenever methods are added; invalidates lookup caches
-	numOps                                         bool // int or float got an operator method: skip the int fast paths
+	// The type builtin is also the type of types; the others have no name in
+	// SEPL (nil and fn are keywords) but type(x) can still return them.
+	tType, tNil, tFn, tModule *TypeObj
+	otherTypes                map[string]*TypeObj // internal values, by TypeName
+	epoch                     int                 // changes whenever methods are added; invalidates lookup caches
+	numOps                    bool                // int or float got an operator method: skip the int fast paths
 
 	modules map[string]*ModuleObj
 	regexps map[string]*regexp.Regexp
@@ -101,8 +105,14 @@ func New(out io.Writer, in io.Reader) *VM {
 			vm.tMap = t
 		case "range":
 			vm.tRange = t
+		case "type":
+			vm.tType = t
 		}
 	}
+	vm.tNil = hiddenType("nil")
+	vm.tFn = hiddenType("fn")
+	vm.tModule = hiddenType("module")
+	vm.otherTypes = map[string]*TypeObj{}
 	return vm
 }
 

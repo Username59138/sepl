@@ -33,6 +33,8 @@ Works now:
 - numbers (`int` 64-bit with overflow errors, `float`), `bool`, `nil`, `str`, `list`, `map`, ranges `a..b`
 - `/` always gives a float, `//` and `%` round toward negative infinity (like Python)
 - no implicit conversions: `"5" + 1` is an error; `str()`, `int()`, `float()` convert
+- `type(x)` gives the type itself: `type(1) == int`, `type(p) == point`, `type(int) == type`; it prints as
+  its name (`int`), and comparing it with a str (`type(x) == "int"`) is an error that says what to write
 - `let`, `const`, block scopes, closures (each loop iteration gets its own variable)
 - `if` and `match` as statements and expressions; match on values, several values, ranges, `_`
 - `while`, `for ... in` over lists, strings, maps, ranges; `break`, `continue`

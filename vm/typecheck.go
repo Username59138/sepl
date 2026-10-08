@@ -26,7 +26,7 @@ func (vm *VM) fits(v Value, t *TypeObj) bool {
 		}
 		vt = o.Type
 	default:
-		vt = vm.builtinTypeOf(v)
+		vt = vm.typeOf(v)
 	}
 	if vt == nil {
 		return false

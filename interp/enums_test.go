@@ -14,7 +14,7 @@ print(c, c.r, c.g, color::red, type(c), color)
 print(color::red == color::red, color::red == color::green, c == color::rgb(255, 128, 0), c != color::rgb(0, 0, 0))
 let names = {color::red: "red", color::green: "green"}
 print(names[color::green], color::red in [color::green, color::red])
-`, `color::rgb(255, 128, 0) 255 128 color::red color <enum color>
+`, `color::rgb(255, 128, 0) 255 128 color::red color color
 true false true true
 green true`)
 

@@ -19,7 +19,7 @@ impl shape:
 
 # scaled returns result::err for a bad factor instead of stopping the program.
 fn scaled(s shape, factor) result:
-    if type(factor) != "int" and type(factor) != "float":
+    if type(factor) != int and type(factor) != float:
         return result::err(f"factor must be a number, not {type(factor)}")
     return result::ok(s.area() * factor * factor)
 

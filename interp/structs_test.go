@@ -30,7 +30,7 @@ print(type(p), point)
 `, `point(x: 3, y: 4, tags: [], id: 7) 3 25 7 0,0 0,0
 point(x: 5, y: 0, tags: [], id: 0) point(x: 6, y: 1, tags: [], id: 1)
 10 ["a"] []
-point <struct point>`)
+point point`)
 
 	expect(t, "methods as values and fields holding functions", `
 struct counter:

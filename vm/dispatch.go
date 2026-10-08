@@ -39,6 +39,59 @@ func (vm *VM) builtinTypeOf(v Value) *TypeObj {
 	return nil
 }
 
+// typeVsStr catches type(x) == "int": type() gives a type, not its name.
+func typeVsStr(a, b Value) error {
+	t, ok := a.O.(*TypeObj)
+	_, isStr := b.O.(*StrObj)
+	if !ok || !isStr {
+		t, ok = b.O.(*TypeObj)
+		_, isStr = a.O.(*StrObj)
+	}
+	if ok && isStr {
+		return errorf("cannot compare a type with a str: type() gives the type itself, so write type(x) == %s", t.Name)
+	}
+	return nil
+}
+
+// hiddenType makes a builtin type that has no name in SEPL code.
+func hiddenType(name string) *TypeObj {
+	t := newType(name)
+	t.builtin = true
+	t.ctor = func(vm *VM, args []Value, kw []Kwarg) (Value, error) {
+		return Nil, errorf("cannot create values of type %s by calling it", name)
+	}
+	return t
+}
+
+// typeOf returns the type of any value: what type(x) gives.
+func (vm *VM) typeOf(v Value) *TypeObj {
+	if t := vm.builtinTypeOf(v); t != nil {
+		return t
+	}
+	if v.K == KNil {
+		return vm.tNil
+	}
+	switch o := v.O.(type) {
+	case *Instance:
+		return o.Type
+	case *EnumValue:
+		return o.Type
+	case *TypeObj:
+		return vm.tType
+	case *Closure, *Builtin, *BoundMethod, *VariantCtor:
+		return vm.tFn
+	case *ModuleObj:
+		return vm.tModule
+	}
+	name := TypeName(v)
+	t, ok := vm.otherTypes[name]
+	if !ok {
+		t = hiddenType(name)
+		vm.otherTypes[name] = t
+	}
+	return t
+}
+
 // userMethod returns the SEPL method name of v's type, or nil.
 func (vm *VM) userMethod(v Value, name string) (*MethodInfo, error) {
 	var t *TypeObj
@@ -106,6 +159,9 @@ func (vm *VM) neg(v Value) (Value, error) {
 // equal implements ==: the eq method if there is one, otherwise structural
 // equality (objects compare field by field).
 func (vm *VM) equal(a, b Value) (bool, error) {
+	if err := typeVsStr(a, b); err != nil {
+		return false, err
+	}
 	if mayHaveMethods(vm, a) {
 		m, err := vm.userMethod(a, "eq")
 		if err != nil {
@@ -258,6 +314,9 @@ func (vm *VM) makeIter(v Value) (Value, error) {
 func (vm *VM) toStr(v Value) (string, error) {
 	if s, ok := v.O.(*StrObj); ok && !vm.tStr.extended {
 		return s.S, nil
+	}
+	if t, ok := v.O.(*TypeObj); ok { // print(type(x)) shows int, inside a list <type int>
+		return t.Name, nil
 	}
 	if s, ok, err := vm.userToStr(v); ok || err != nil {
 		return s, err

@@ -32,6 +32,7 @@ var builtinList = []*Builtin{
 // and "impl int:" adds methods to every int.
 var builtinTypeNames = map[string]bool{
 	"int": true, "float": true, "str": true, "bool": true, "list": true, "map": true, "range": true,
+	"type": true,
 }
 
 // BuiltinNames returns the names of the builtins in index order.
@@ -212,7 +213,7 @@ func biType(vm *VM, args []Value, kw []Kwarg) (Value, error) {
 	if err := arity("type", args, 1, 1); err != nil {
 		return Nil, err
 	}
-	return Str(TypeName(args[0])), nil
+	return Obj(vm.typeOf(args[0])), nil
 }
 
 func biInput(vm *VM, args []Value, kw []Kwarg) (Value, error) {
