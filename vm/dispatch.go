@@ -116,7 +116,13 @@ func (vm *VM) equal(a, b Value) (bool, error) {
 			return Truthy(r), err
 		}
 	}
-	return Equal(a, b), nil
+	var ferr error
+	eq := equal(a, b, 0, nil, func(v Value) {
+		if ferr == nil {
+			ferr = vm.fillStale(v)
+		}
+	})
+	return eq, ferr
 }
 
 // less implements a < b, used by sort.
@@ -265,7 +271,12 @@ func (vm *VM) toStr(v Value) (string, error) {
 // repr renders a value the way it looks inside a list, using to_str methods.
 func (vm *VM) repr(v Value) (string, error) {
 	var b strings.Builder
-	err := writeRepr(&b, v, nil, vm.userToStr)
+	err := writeRepr(&b, v, nil, func(v Value) (string, bool, error) {
+		if err := vm.fillStale(v); err != nil {
+			return "", false, err
+		}
+		return vm.userToStr(v)
+	})
 	return b.String(), err
 }
 

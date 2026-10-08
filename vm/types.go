@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -96,6 +97,7 @@ type TypeObj struct {
 	own      map[string]*MethodInfo
 	bases    []*TypeObj // parents (is) and sources of add impl, searched for methods
 	supers   []*TypeObj // sources of add struct (for type checks)
+	children []*TypeObj // types that copied this one's fields (is, add struct): they get its later fields too
 	extended bool       // SEPL code added methods (matters for builtin types)
 
 	isEnum       bool
@@ -219,6 +221,7 @@ func (vm *VM) makeStruct(d *StructDesc, parents, vals []Value) (Value, error) {
 			return Nil, err
 		}
 		t.bases = append(t.bases, p)
+		p.children = append(p.children, t)
 		for _, f := range p.Fields {
 			if own[f.Name] {
 				continue // redeclared: the struct's own field wins
@@ -326,8 +329,11 @@ func (vm *VM) implement(target Value, d *ImplDesc, fns []Value) error {
 	return nil
 }
 
-// addStruct runs "add struct S to T": T gets S's fields. Existing objects of
-// T get the new fields (with their defaults) the first time they are used.
+// addStruct runs "add struct S to T": T gets S's fields, and so does every
+// type that already inherits T's fields (struct c is T, add struct T to c),
+// however deep. Nothing changes if any of them would get a conflicting field.
+// Existing objects get the new fields (with their defaults) the first time
+// they are used.
 func (vm *VM) addStruct(src, dst Value) error {
 	s, err := asStruct(src, "add struct")
 	if err != nil {
@@ -343,21 +349,65 @@ func (vm *VM) addStruct(src, dst Value) error {
 	if s == t {
 		return errorf("cannot add struct %s to itself", s.Name)
 	}
-	for _, f := range s.Fields {
-		if i, ok := t.fieldIdx[f.Name]; ok {
-			if t.Fields[i].Origin == f.Origin {
-				continue
-			}
-			return errorf("%s already has a field '%s' (from %s)", t.Name, f.Name, t.Fields[i].Origin.Name)
-		}
-		t.addField(f)
+	// Plan first: which fields each type gets.
+	type plan struct {
+		t      *TypeObj
+		fields []*FieldInfo
 	}
-	for k, v := range s.statics {
-		if _, ok := t.statics[k]; !ok {
-			t.statics[k] = v
+	var plans []plan
+	visited := map[*TypeObj]bool{}
+	var walk func(u *TypeObj, fields []*FieldInfo) error
+	walk = func(u *TypeObj, fields []*FieldInfo) error {
+		if visited[u] {
+			return nil
+		}
+		visited[u] = true
+		var got []*FieldInfo
+		for _, f := range fields {
+			if i, ok := u.fieldIdx[f.Name]; ok {
+				have := u.Fields[i].Origin
+				if have == f.Origin || u != t && have == u {
+					continue // already there, or redeclared by a child: its own field wins
+				}
+				if u == t {
+					return errorf("%s already has a field '%s' (from %s)", u.Name, f.Name, have.Name)
+				}
+				return errorf("cannot add struct %s to %s: %s (a child of %s) already has a field '%s' (from %s); declare it in %s to choose",
+					s.Name, t.Name, u.Name, t.Name, f.Name, have.Name, u.Name)
+			}
+			if _, ok := u.statics[f.Name]; ok && u != t {
+				continue // the child made it a type constant
+			}
+			got = append(got, f)
+		}
+		if len(got) == 0 {
+			return nil
+		}
+		plans = append(plans, plan{u, got})
+		for _, c := range u.children {
+			if err := walk(c, got); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if err := walk(t, s.Fields); err != nil {
+		return err
+	}
+	for _, p := range plans {
+		for _, f := range p.fields {
+			p.t.addField(f)
+		}
+		for k, v := range s.statics {
+			if _, ok := p.t.statics[k]; !ok {
+				p.t.statics[k] = v
+			}
 		}
 	}
 	t.supers = append(t.supers, s)
+	if !slices.Contains(s.children, t) {
+		s.children = append(s.children, t)
+	}
 	vm.epoch++
 	return nil
 }
@@ -593,6 +643,15 @@ func (vm *VM) fieldDefault(f *FieldInfo) (Value, error) {
 		return vm.Call(f.Thunk, nil)
 	}
 	return Nil, nil
+}
+
+// fillStale migrates v if it is an object created before add struct gave
+// its type more fields.
+func (vm *VM) fillStale(v Value) error {
+	if inst, ok := v.O.(*Instance); ok && len(inst.Fields) < len(inst.Type.Fields) {
+		return vm.migrate(inst)
+	}
+	return nil
 }
 
 // migrate gives an object the fields added to its type by add struct.

@@ -587,6 +587,9 @@ func (c *compiler) stmt(s ast.Stmt) {
 		desc, n := c.methods(s.Methods, strings.Join(s.Type.Path, "::"))
 		c.emit(vm.OpImpl, c.constant(vm.Obj(desc), nil), s.At, -1-n)
 	case *ast.AddDecl:
+		if !c.f.isScript {
+			c.errorf(s.At, "'add %s' cannot be used inside a function: put it at the top level of the file", s.Kind)
+		}
 		c.typeRef(s.Source)
 		c.typeRef(s.Target)
 		if s.Kind == token.STRUCT {

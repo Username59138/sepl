@@ -395,6 +395,9 @@ func (p *parser) parseStmt() ast.Stmt {
 
 // parseSimpleStmt parses a statement that may also follow ':' on one line.
 func (p *parser) parseSimpleStmt() ast.Stmt {
+	if p.isWord("add") && (p.peek.Type == token.STRUCT || p.peek.Type == token.IMPL) {
+		p.fail(p.tok.Pos, "'add' must start on its own line")
+	}
 	switch p.tok.Type {
 	case token.LET:
 		return p.parseLet()

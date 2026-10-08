@@ -46,7 +46,7 @@ func jsonModule(vm *VM) map[string]Value {
 				indent = strings.Repeat(" ", int(n.AsInt()))
 			}
 			var b strings.Builder
-			if err := encodeJSON(&b, a[0], indent, "", 0); err != nil {
+			if err := encodeJSON(&b, a[0], indent, "", 0, vm.fillStale); err != nil {
 				return Nil, err
 			}
 			return Str(b.String()), nil
@@ -113,7 +113,8 @@ func jsonString(s string) string {
 	return strings.TrimSuffix(b.String(), "\n")
 }
 
-func encodeJSON(b *strings.Builder, v Value, indent, prefix string, depth int) error {
+// fill completes objects created before add struct gave their type more fields.
+func encodeJSON(b *strings.Builder, v Value, indent, prefix string, depth int, fill func(Value) error) error {
 	if depth > 200 {
 		return opError("json::to_str(): the value is nested too deeply (or contains itself)")
 	}
@@ -164,7 +165,7 @@ func encodeJSON(b *strings.Builder, v Value, indent, prefix string, depth int) e
 		open('[')
 		for i, x := range o.Items {
 			sep(i)
-			if err := encodeJSON(b, x, indent, inner, depth+1); err != nil {
+			if err := encodeJSON(b, x, indent, inner, depth+1, fill); err != nil {
 				return err
 			}
 		}
@@ -185,12 +186,15 @@ func encodeJSON(b *strings.Builder, v Value, indent, prefix string, depth int) e
 				key = Repr(k)
 			}
 			b.WriteString(jsonString(key) + colon)
-			if err := encodeJSON(b, o.vals[i], indent, inner, depth+1); err != nil {
+			if err := encodeJSON(b, o.vals[i], indent, inner, depth+1, fill); err != nil {
 				return err
 			}
 		}
 		closeWith('}', o.Len())
 	case *Instance:
+		if err := fill(v); err != nil {
+			return err
+		}
 		open('{')
 		for i, f := range o.Type.Fields {
 			sep(i)
@@ -199,7 +203,7 @@ func encodeJSON(b *strings.Builder, v Value, indent, prefix string, depth int) e
 			if i < len(o.Fields) {
 				fv = o.Fields[i]
 			}
-			if err := encodeJSON(b, fv, indent, inner, depth+1); err != nil {
+			if err := encodeJSON(b, fv, indent, inner, depth+1, fill); err != nil {
 				return err
 			}
 		}

@@ -209,7 +209,7 @@ const MaxStrBytes = 1 << 28
 // of containers already being compared further up counts as equal, so the
 // answer is decided by the rest of their contents.
 func Equal(a, b Value) bool {
-	return equal(a, b, 0, nil)
+	return equal(a, b, 0, nil, nil)
 }
 
 // eqTrackDepth is how deep equal goes before it starts remembering the pairs
@@ -218,7 +218,9 @@ const eqTrackDepth = 32
 
 type eqPair struct{ x, y any }
 
-func equal(a, b Value, depth int, seen map[eqPair]bool) bool {
+// fill, if set, completes objects created before add struct gave their
+// type more fields.
+func equal(a, b Value, depth int, seen map[eqPair]bool, fill func(Value)) bool {
 	if a.K == KInt && b.K == KInt {
 		return a.N == b.N
 	}
@@ -256,7 +258,7 @@ func equal(a, b Value, depth int, seen map[eqPair]bool) bool {
 			seen[eqPair{x, y}] = true
 		}
 		for i := range x.Items {
-			if !equal(x.Items[i], y.Items[i], depth, seen) {
+			if !equal(x.Items[i], y.Items[i], depth, seen, fill) {
 				return false
 			}
 		}
@@ -280,7 +282,7 @@ func equal(a, b Value, depth int, seen map[eqPair]bool) bool {
 		}
 		for i, k := range x.keys {
 			w, found := y.Get(k)
-			if !found || !equal(x.vals[i], w, depth, seen) {
+			if !found || !equal(x.vals[i], w, depth, seen, fill) {
 				return false
 			}
 		}
@@ -290,6 +292,10 @@ func equal(a, b Value, depth int, seen map[eqPair]bool) bool {
 		return ok && *x == *y
 	case *Instance:
 		y, ok := b.O.(*Instance)
+		if ok && fill != nil && x.Type == y.Type {
+			fill(a)
+			fill(b)
+		}
 		if !ok || x.Type != y.Type || len(x.Fields) != len(y.Fields) {
 			return false
 		}
@@ -306,7 +312,7 @@ func equal(a, b Value, depth int, seen map[eqPair]bool) bool {
 			seen[eqPair{x, y}] = true
 		}
 		for i := range x.Fields {
-			if !equal(x.Fields[i], y.Fields[i], depth, seen) {
+			if !equal(x.Fields[i], y.Fields[i], depth, seen, fill) {
 				return false
 			}
 		}
@@ -326,7 +332,7 @@ func equal(a, b Value, depth int, seen map[eqPair]bool) bool {
 			seen[eqPair{x, y}] = true
 		}
 		for i := range x.Fields {
-			if !equal(x.Fields[i], y.Fields[i], depth, seen) {
+			if !equal(x.Fields[i], y.Fields[i], depth, seen, fill) {
 				return false
 			}
 		}
@@ -336,7 +342,7 @@ func equal(a, b Value, depth int, seen map[eqPair]bool) bool {
 		return ok && x.Variant == y.Variant
 	case *BoundMethod:
 		y, ok := b.O.(*BoundMethod)
-		return ok && x.Name == y.Name && x.Fn == y.Fn && equal(x.Recv, y.Recv, depth, seen)
+		return ok && x.Name == y.Name && x.Fn == y.Fn && equal(x.Recv, y.Recv, depth, seen, fill)
 	}
 	return a.O == b.O
 }
