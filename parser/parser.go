@@ -517,9 +517,9 @@ func (p *parser) parseType() *ast.TypeExpr {
 	return t
 }
 
-// parseAnnotation parses the type of a variable, parameter, result or field:
-// a type name, or an expression that gives a type, such as type(x) or
-// types[0]. impl, add and is take only names (parseType).
+// parseAnnotation parses a type wherever one is expected (annotations, impl,
+// add, is): a type name, or an expression that gives a type, such as
+// type(x) or types[0].
 func (p *parser) parseAnnotation() *ast.TypeExpr {
 	t := p.parseType()
 	switch p.tok.Type {
@@ -534,10 +534,10 @@ func (p *parser) parseAnnotation() *ast.TypeExpr {
 }
 
 func (p *parser) parseTypeList() []*ast.TypeExpr {
-	list := []*ast.TypeExpr{p.parseType()}
+	list := []*ast.TypeExpr{p.parseAnnotation()}
 	for p.tok.Type == token.COMMA {
 		p.next()
-		list = append(list, p.parseType())
+		list = append(list, p.parseAnnotation())
 	}
 	return list
 }
@@ -675,8 +675,8 @@ func (p *parser) parseMethods(after string) []*ast.FnDecl {
 
 func (p *parser) parseImpl() ast.Stmt {
 	pos := p.expect(token.IMPL, "'impl'").Pos
-	t := p.parseType()
-	return &ast.ImplDecl{At: pos, Type: t, Methods: p.parseMethods("impl " + strings.Join(t.Path, "::"))}
+	t := p.parseAnnotation()
+	return &ast.ImplDecl{At: pos, Type: t, Methods: p.parseMethods("impl " + t.String())}
 }
 
 func (p *parser) parseAdd() ast.Stmt {
@@ -684,12 +684,12 @@ func (p *parser) parseAdd() ast.Stmt {
 	p.next() // add
 	d := &ast.AddDecl{At: pos, Kind: p.tok.Type}
 	p.next() // struct | impl
-	d.Source = p.parseType()
+	d.Source = p.parseAnnotation()
 	if !p.isWord("to") {
-		p.fail(p.tok.Pos, "expected 'to' after 'add "+d.Kind.String()+" "+strings.Join(d.Source.Path, "::")+"', found "+p.describe(p.tok))
+		p.fail(p.tok.Pos, "expected 'to' after 'add "+d.Kind.String()+" "+d.Source.String()+"', found "+p.describe(p.tok))
 	}
 	p.next()
-	d.Target = p.parseType()
+	d.Target = p.parseAnnotation()
 	if p.tok.Type == token.COLON {
 		if d.Kind == token.STRUCT {
 			p.fail(p.tok.Pos, "'add struct' has no body; to override methods use 'add impl ... to ...:'")

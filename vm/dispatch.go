@@ -57,6 +57,7 @@ func typeVsStr(a, b Value) error {
 func hiddenType(name string) *TypeObj {
 	t := newType(name)
 	t.builtin = true
+	t.sealed = true
 	t.ctor = func(vm *VM, args []Value, kw []Kwarg) (Value, error) {
 		return Nil, errorf("cannot create values of type %s by calling it", name)
 	}

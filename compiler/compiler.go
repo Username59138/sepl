@@ -584,7 +584,7 @@ func (c *compiler) stmt(s ast.Stmt) {
 		c.structDecl(s)
 	case *ast.ImplDecl:
 		c.typeRef(s.Type)
-		desc, n := c.methods(s.Methods, strings.Join(s.Type.Path, "::"))
+		desc, n := c.methods(s.Methods, s.Type.String())
 		c.emit(vm.OpImpl, c.constant(vm.Obj(desc), nil), s.At, -1-n)
 	case *ast.AddDecl:
 		c.typeRef(s.Source)
@@ -593,7 +593,7 @@ func (c *compiler) stmt(s ast.Stmt) {
 			c.emit(vm.OpAddStruct, 0, s.At, -2)
 			return
 		}
-		desc, n := c.methods(s.Methods, strings.Join(s.Target.Path, "::"))
+		desc, n := c.methods(s.Methods, s.Target.String())
 		c.emit(vm.OpAddImpl, c.constant(vm.Obj(desc), nil), s.At, -2-n)
 	case *ast.EnumDecl:
 		c.enumDecl(s)

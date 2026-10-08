@@ -58,4 +58,31 @@ print(y, q, s, same(1, 2), same("a", "b"), f(1.5, 2), box(v: 3))
 	expectErr(t, "a parameter typed by another", "fn same(a, b type(a)):\n    return b\nsame(1, \"x\")", "runtime", 3,
 		"argument 'b' of same() must be int, not str")
 	expectErr(t, "not a type", `let z len("a") = 1`, "runtime", 1, "the type of z is not a type but int")
+
+	expect(t, "impl, add and is take a type expression", `
+struct point:
+    let x = 1
+struct named:
+    let name = "?"
+impl named:
+    fn hello(self):
+        return f"hello, {self.name}"
+let p = point()
+impl type(p):
+    fn twice(self):
+        return self.x * 2
+let traits = [named]
+add struct traits[0] to type(p)
+add impl traits[0] to type(p)
+struct p3 is type(p)
+let builtins = {"num": int}
+impl builtins["num"]:
+    fn sq(self):
+        return self * self
+print(p.twice(), point(name: "box").hello(), p3(x: 4).twice(), 5.sq())
+`, "2 hello, box 8 25")
+
+	expectErr(t, "impl type", "impl type:\n    fn f(self): return 1", "runtime", 1, "cannot add methods to type: its values have no methods")
+	expectErr(t, "impl fn", "impl type(print):\n    fn f(self): return 1", "runtime", 1, "cannot add methods to fn")
+	expectErr(t, "add impl to nil", "struct s\nadd impl s to type(nil)", "runtime", 2, "cannot add methods to nil")
 }

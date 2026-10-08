@@ -99,6 +99,7 @@ type TypeObj struct {
 	supers   []*TypeObj // sources of add struct (for type checks)
 	children []*TypeObj // types that copied this one's fields (is, add struct): they get its later fields too
 	extended bool       // SEPL code added methods (matters for builtin types)
+	sealed   bool       // its values never look methods up (nil, fn, type, module): impl and add refuse it
 
 	isEnum       bool
 	variants     map[string]*VariantInfo
@@ -198,6 +199,14 @@ func asStruct(v Value, what string) (*TypeObj, error) {
 		return nil, errorf("%s needs a struct; %s is a builtin type", what, t.Name)
 	}
 	return t, nil
+}
+
+// sealedErr refuses methods for types whose values never look them up.
+func sealedErr(t *TypeObj) error {
+	if t.sealed {
+		return errorf("cannot add methods to %s: its values have no methods", t.Name)
+	}
+	return nil
 }
 
 func asType(v Value, what string) (*TypeObj, error) {
@@ -325,6 +334,9 @@ func (vm *VM) implement(target Value, d *ImplDesc, fns []Value) error {
 	if err != nil {
 		return err
 	}
+	if err := sealedErr(t); err != nil {
+		return err
+	}
 	vm.installMethods(t, d, fns)
 	return nil
 }
@@ -421,6 +433,9 @@ func (vm *VM) addImpl(src, dst Value, d *ImplDesc, fns []Value) error {
 	}
 	t, err := asType(dst, "add impl ... to")
 	if err != nil {
+		return err
+	}
+	if err := sealedErr(t); err != nil {
 		return err
 	}
 	if s == t {

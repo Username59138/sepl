@@ -65,6 +65,9 @@ func (p *printer) exprs(list []Expr) {
 	}
 }
 
+// String renders the annotation as written: point, geo::point, type(x).
+func (t *TypeExpr) String() string { return typeString(t) }
+
 func typeString(t *TypeExpr) string {
 	if t == nil {
 		return ""

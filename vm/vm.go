@@ -107,6 +107,7 @@ func New(out io.Writer, in io.Reader) *VM {
 			vm.tRange = t
 		case "type":
 			vm.tType = t
+			t.sealed = true
 		}
 	}
 	vm.tNil = hiddenType("nil")
