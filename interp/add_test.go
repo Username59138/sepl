@@ -48,8 +48,8 @@ print(b())
 struct a
 struct b:
     let k = 1
-for i in 0..3:
-    add struct b to a
+add struct b to a
+add struct b to a
 print(a())
 `, "a(k: 1)")
 
@@ -59,9 +59,11 @@ print(a())
 
 func TestAddPlacement(t *testing.T) {
 	expectErr(t, "add struct in a function", "struct a\nstruct b\nfn f():\n    add struct b to a", "compile", 4,
-		"'add struct' cannot be used inside a function: put it at the top level of the file")
+		"'add struct' is a declaration, like struct and impl: put it at the top level of the file")
 	expectErr(t, "add impl in a method", "struct a\nstruct b\nimpl a:\n    fn f(self):\n        add impl b to a", "compile", 5,
-		"'add impl' cannot be used inside a function")
+		"'add impl' is a declaration")
 	expectErr(t, "add after ':' on one line", "struct a\nstruct b\nif true: add struct b to a", "syntax", 3, "'add' must start on its own line")
-	expect(t, "inside a top-level block", "struct a\nstruct b:\n    let k = 1\nif true:\n    add struct b to a\nprint(a())", "a(k: 1)")
+	expectErr(t, "inside a top-level if", "struct a\nstruct b\nif true:\n    add struct b to a", "compile", 4, "'add struct' is a declaration")
+	expectErr(t, "inside a top-level loop", "struct a\nstruct b\nfor i in 0..2:\n    add impl b to a", "compile", 4, "'add impl' is a declaration")
+	expectErr(t, "inside a lambda", "struct a\nstruct b\nlet f = fn():\n    add struct b to a", "compile", 4, "'add struct' is a declaration")
 }
