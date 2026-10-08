@@ -202,6 +202,9 @@ func addCollectionMethods() {
 				}
 			}
 			s := r.O.(*StrObj)
+			if width > MaxStrBytes/int64(len(fill)) {
+				return Nil, errorf("%s(): the width is too large", name)
+			}
 			n := int(width) - s.Len()
 			if n <= 0 {
 				return r, nil

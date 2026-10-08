@@ -198,9 +198,27 @@ func Truthy(v Value) bool {
 	return true
 }
 
+// MaxStrBytes is the largest string that methods building a string of a
+// requested size (repeat, pad_left, pad_right) agree to make: a size typed
+// by mistake becomes a runtime error instead of exhausting memory.
+const MaxStrBytes = 1 << 28
+
 // Equal reports whether a == b. Numbers compare by value across int and
 // float, lists and maps compare element by element, other objects by identity.
+// Values that contain themselves compare without endless recursion: a pair
+// of containers already being compared further up counts as equal, so the
+// answer is decided by the rest of their contents.
 func Equal(a, b Value) bool {
+	return equal(a, b, 0, nil)
+}
+
+// eqTrackDepth is how deep equal goes before it starts remembering the pairs
+// it is comparing; shallow comparisons, the usual case, never allocate.
+const eqTrackDepth = 32
+
+type eqPair struct{ x, y any }
+
+func equal(a, b Value, depth int, seen map[eqPair]bool) bool {
 	if a.K == KInt && b.K == KInt {
 		return a.N == b.N
 	}
@@ -228,8 +246,17 @@ func Equal(a, b Value) bool {
 		if x == y {
 			return true
 		}
+		if depth++; depth > eqTrackDepth {
+			if seen == nil {
+				seen = map[eqPair]bool{}
+			}
+			if seen[eqPair{x, y}] {
+				return true
+			}
+			seen[eqPair{x, y}] = true
+		}
 		for i := range x.Items {
-			if !Equal(x.Items[i], y.Items[i]) {
+			if !equal(x.Items[i], y.Items[i], depth, seen) {
 				return false
 			}
 		}
@@ -242,9 +269,18 @@ func Equal(a, b Value) bool {
 		if x == y {
 			return true
 		}
+		if depth++; depth > eqTrackDepth {
+			if seen == nil {
+				seen = map[eqPair]bool{}
+			}
+			if seen[eqPair{x, y}] {
+				return true
+			}
+			seen[eqPair{x, y}] = true
+		}
 		for i, k := range x.keys {
 			w, found := y.Get(k)
-			if !found || !Equal(x.vals[i], w) {
+			if !found || !equal(x.vals[i], w, depth, seen) {
 				return false
 			}
 		}
@@ -260,8 +296,17 @@ func Equal(a, b Value) bool {
 		if x == y {
 			return true
 		}
+		if depth++; depth > eqTrackDepth {
+			if seen == nil {
+				seen = map[eqPair]bool{}
+			}
+			if seen[eqPair{x, y}] {
+				return true
+			}
+			seen[eqPair{x, y}] = true
+		}
 		for i := range x.Fields {
-			if !Equal(x.Fields[i], y.Fields[i]) {
+			if !equal(x.Fields[i], y.Fields[i], depth, seen) {
 				return false
 			}
 		}
@@ -271,8 +316,17 @@ func Equal(a, b Value) bool {
 		if !ok || x.Variant != y.Variant || len(x.Fields) != len(y.Fields) {
 			return false
 		}
+		if depth++; depth > eqTrackDepth {
+			if seen == nil {
+				seen = map[eqPair]bool{}
+			}
+			if seen[eqPair{x, y}] {
+				return true
+			}
+			seen[eqPair{x, y}] = true
+		}
 		for i := range x.Fields {
-			if !Equal(x.Fields[i], y.Fields[i]) {
+			if !equal(x.Fields[i], y.Fields[i], depth, seen) {
 				return false
 			}
 		}
@@ -282,7 +336,7 @@ func Equal(a, b Value) bool {
 		return ok && x.Variant == y.Variant
 	case *BoundMethod:
 		y, ok := b.O.(*BoundMethod)
-		return ok && x.Name == y.Name && x.Fn == y.Fn && Equal(x.Recv, y.Recv)
+		return ok && x.Name == y.Name && x.Fn == y.Fn && equal(x.Recv, y.Recv, depth, seen)
 	}
 	return a.O == b.O
 }

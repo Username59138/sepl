@@ -241,7 +241,11 @@ func init() {
 			if a[0].K != KInt || a[0].AsInt() < 0 {
 				return Nil, opError("repeat() needs a non-negative int")
 			}
-			return Str(strings.Repeat(r.O.(*StrObj).S, int(a[0].AsInt()))), nil
+			s, n := r.O.(*StrObj).S, a[0].AsInt()
+			if len(s) > 0 && n > MaxStrBytes/int64(len(s)) {
+				return Nil, opError("repeat(): the result would be too large")
+			}
+			return Str(strings.Repeat(s, int(n))), nil
 		},
 		"chars": func(vm *VM, r Value, a []Value) (Value, error) {
 			if err := arity("chars", a, 0, 0); err != nil {
