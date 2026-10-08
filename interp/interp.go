@@ -86,6 +86,8 @@ func NewSession(out io.Writer, in io.Reader) *Session {
 	if err != nil {
 		panic("sepl: the prelude does not run: " + err.Error())
 	}
+	std := s.prelude.Exports()
+	s.VM.SetStdTypes(std["result"], std["option"])
 	s.Globals = s.newGlobals("main")
 	s.VM.Importer = s.importModule
 	return s

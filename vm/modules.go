@@ -12,11 +12,19 @@ import (
 
 // Built-in modules, used with import: import term, then term::key().
 
-var moduleBuilders = map[string]func(vm *VM) map[string]Value{
-	"term":   termModule,
-	"random": randomModule,
-	"math":   mathModule,
-	"time":   timeModule,
+var moduleBuilders map[string]func(vm *VM) map[string]Value
+
+func init() {
+	moduleBuilders = map[string]func(vm *VM) map[string]Value{
+		"term":   termModule,
+		"random": randomModule,
+		"math":   mathModule,
+		"time":   timeModule,
+		"fs":     fsModule,
+		"os":     osModule,
+		"json":   jsonModule,
+		"re":     reModule,
+	}
 }
 
 // HasModule reports whether a built-in module exists.
@@ -26,7 +34,15 @@ func HasModule(name string) bool {
 }
 
 // ModuleNames lists the built-in modules.
-func ModuleNames() []string { return []string{"term", "random", "math", "time"} }
+func ModuleNames() []string {
+	var names []string
+	for _, n := range []string{"fs", "os", "json", "re", "math", "random", "time", "term"} {
+		if HasModule(n) {
+			names = append(names, n)
+		}
+	}
+	return names
+}
 
 // BuiltinModule returns a built-in module such as term.
 func (vm *VM) BuiltinModule(name string) (*ModuleObj, error) { return vm.module(name) }
@@ -352,6 +368,21 @@ func floatFn(name string, f func(float64) float64) Value {
 	})
 }
 
+func roundToInt(v Value) (Value, error) {
+	if v.K == KInt {
+		return v, nil
+	}
+	x, err := numArg("math::round", v)
+	if err != nil {
+		return Nil, err
+	}
+	r := math.Round(x)
+	if math.IsNaN(r) || r < math.MinInt64 || r >= math.MaxInt64 {
+		return Nil, errorf("math::round(%s) does not fit in an int", FormatFloat(x))
+	}
+	return Int(int64(r)), nil
+}
+
 func roundingFn(name string, f func(float64) float64) Value {
 	return fnValue(name, func(vm *VM, args []Value, kw []Kwarg) (Value, error) {
 		if err := arity(name, args, 1, 1); err != nil {
@@ -383,9 +414,64 @@ func mathModule(vm *VM) map[string]Value {
 		"tan":   floatFn("math::tan", math.Tan),
 		"log":   floatFn("math::log", math.Log),
 		"exp":   floatFn("math::exp", math.Exp),
+		"asin":  floatFn("math::asin", math.Asin),
+		"acos":  floatFn("math::acos", math.Acos),
+		"atan":  floatFn("math::atan", math.Atan),
+		"log10": floatFn("math::log10", math.Log10),
+		"log2":  floatFn("math::log2", math.Log2),
 		"floor": roundingFn("math::floor", math.Floor),
 		"ceil":  roundingFn("math::ceil", math.Ceil),
-		"round": roundingFn("math::round", math.Round),
+		// round(x) is the nearest int; round(x, 2) keeps two decimals (a float).
+		"round": fn("math::round", 1, 2, nil, func(vm *VM, a []Value, _ map[string]Value) (Value, error) {
+			if len(a) == 1 {
+				return roundToInt(a[0])
+			}
+			x, err := numArg("math::round", a[0])
+			if err != nil {
+				return Nil, err
+			}
+			d, err := intArg("math::round", a[1])
+			if err != nil {
+				return Nil, err
+			}
+			p := math.Pow(10, float64(d))
+			return Float(math.Round(x*p) / p), nil
+		}),
+		"atan2": fn("math::atan2", 2, 2, nil, func(vm *VM, a []Value, _ map[string]Value) (Value, error) {
+			y, err := numArg("math::atan2", a[0])
+			if err != nil {
+				return Nil, err
+			}
+			x, err := numArg("math::atan2", a[1])
+			if err != nil {
+				return Nil, err
+			}
+			return Float(math.Atan2(y, x)), nil
+		}),
+		"hypot": fn("math::hypot", 2, 2, nil, func(vm *VM, a []Value, _ map[string]Value) (Value, error) {
+			x, err := numArg("math::hypot", a[0])
+			if err != nil {
+				return Nil, err
+			}
+			y, err := numArg("math::hypot", a[1])
+			if err != nil {
+				return Nil, err
+			}
+			return Float(math.Hypot(x, y)), nil
+		}),
+		// clamp(x, lo, hi) keeps x between lo and hi.
+		"clamp": fn("math::clamp", 3, 3, nil, func(vm *VM, a []Value, _ map[string]Value) (Value, error) {
+			if lt, err := vm.less(a[0], a[1]); err != nil || lt {
+				return a[1], err
+			}
+			if gt, err := vm.less(a[2], a[0]); err != nil || gt {
+				return a[2], err
+			}
+			return a[0], nil
+		}),
+		"is_nan": fn("math::is_nan", 1, 1, nil, func(vm *VM, a []Value, _ map[string]Value) (Value, error) {
+			return Bool(a[0].K == KFloat && math.IsNaN(a[0].AsFloat())), nil
+		}),
 		"pow": fnValue("math::pow", func(vm *VM, args []Value, kw []Kwarg) (Value, error) {
 			if err := arity("math::pow", args, 2, 2); err != nil {
 				return Nil, err
@@ -405,6 +491,28 @@ func mathModule(vm *VM) map[string]Value {
 
 func timeModule(vm *VM) map[string]Value {
 	return map[string]Value{
+		// format(t, layout) shows a time (seconds, as from now()) in local
+		// time: %Y %m %d %H %M %S. format() is the current time as
+		// "2026-10-08 14:05:09".
+		"format": fn("time::format", 0, 2, nil, func(vm *VM, a []Value, _ map[string]Value) (Value, error) {
+			t := time.Now()
+			if len(a) > 0 && a[0].K != KNil {
+				sec, err := numArg("time::format", a[0])
+				if err != nil {
+					return Nil, err
+				}
+				t = time.Unix(0, int64(sec*1e9))
+			}
+			layout := "%Y-%m-%d %H:%M:%S"
+			if len(a) == 2 {
+				s, ok := a[1].AsStr()
+				if !ok {
+					return Nil, errorf("time::format() layout must be a str, not %s", TypeName(a[1]))
+				}
+				layout = s
+			}
+			return Str(formatTime(t, layout)), nil
+		}),
 		// now() is the time in seconds, as a float.
 		"now": fnValue("time::now", func(vm *VM, args []Value, kw []Kwarg) (Value, error) {
 			if err := arity("time::now", args, 0, 0); err != nil {

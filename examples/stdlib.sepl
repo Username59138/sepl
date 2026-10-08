@@ -1,0 +1,43 @@
+# A small script using the standard library:
+#   sepl examples/stdlib.sepl users.json
+# reads a JSON file of users, prints the adults and saves a report next to it.
+import fs
+import json
+import re
+import time
+
+struct user:
+    let name str
+    let age int
+
+impl user:
+    fn to_str(self):
+        return f"{self.name} ({self.age})"
+
+fn is_adult(u user) bool:
+    return u.age >= 18
+
+fn load(path str) result:
+    let text = fs::read(path)?
+    let data = json::parse(text)?
+    let users = []
+    for item in data["users"]:
+        users.push(user(name: item["name"], age: item["age"]))
+    return result::ok(users)
+
+fn main(args) int:
+    if len(args) != 1:
+        print("usage: sepl stdlib.sepl users.json")
+        return 2
+    match load(args[0]):
+        result::err(msg):
+            print("cannot read users:", msg)
+            return 1
+        result::ok(users):
+            let adults = users.filter(is_adult)
+            print("adults:", adults.map(str).join(", "))
+            let report = re::replace("\\.json$", args[0], ".report.txt")
+            let lines = [f"report of {time::format()}", f"{len(adults)} of {len(users)} are adults"]
+            fs::write(report, lines.join("\n") + "\n").unwrap()
+            print("saved", report)
+    return 0

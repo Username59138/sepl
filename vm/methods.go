@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -355,11 +356,47 @@ func init() {
 			}
 			return Nil, nil
 		},
+		// sort() sorts in place; sort(key) sorts by key(item).
 		"sort": func(vm *VM, r Value, a []Value) (Value, error) {
-			if err := arity("sort", a, 0, 0); err != nil {
+			if err := arity("sort", a, 0, 1); err != nil {
 				return Nil, err
 			}
-			return Nil, vm.sortValues(r.O.(*ListObj).Items)
+			l := r.O.(*ListObj)
+			if len(a) == 0 {
+				return Nil, vm.sortValues(l.Items)
+			}
+			keys := make([]Value, len(l.Items))
+			for i, x := range l.Items {
+				k, err := vm.Call(a[0], []Value{x})
+				if err != nil {
+					return Nil, err
+				}
+				keys[i] = k
+			}
+			idx := make([]int, len(keys))
+			for i := range idx {
+				idx[i] = i
+			}
+			var err error
+			sort.SliceStable(idx, func(i, j int) bool {
+				if err != nil {
+					return false
+				}
+				lt, e := vm.less(keys[idx[i]], keys[idx[j]])
+				if e != nil {
+					err = e
+				}
+				return lt
+			})
+			if err != nil {
+				return Nil, err
+			}
+			sorted := make([]Value, len(idx))
+			for i, k := range idx {
+				sorted[i] = l.Items[k]
+			}
+			copy(l.Items, sorted)
+			return Nil, nil
 		},
 		"join": func(vm *VM, r Value, a []Value) (Value, error) {
 			if err := arity("join", a, 1, 1); err != nil {
@@ -491,6 +528,7 @@ func init() {
 			return NewList(items), nil
 		},
 	}
+	addCollectionMethods()
 	buildMethodTables()
 }
 

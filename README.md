@@ -17,6 +17,7 @@ go build -o sepl ./cmd/sepl
 ./sepl examples/snake.sepl        # the terminal snake game (arrow keys)
 ./sepl examples/shapes.sepl       # enums, match and ?
 ./sepl examples/modules/main.sepl # a program in several files, with type annotations
+./sepl examples/stdlib.sepl users.json  # files, JSON, regex, time
 ./sepl                            # REPL: type code, see results
 ./sepl dis examples/fact.sepl     # show the bytecode
 ./sepl parse examples/snake.sepl  # show the syntax tree
@@ -67,12 +68,31 @@ Works now:
   `shapes/geometry.sepl`, `import geo as g` renames it; then `geo::point`, `geo::dist(p)`. Top-level names
   are exported except those starting with `_`; a module runs once, its `main` is not called; circular
   imports are an error. Without such a file, the built-in module of that name is used
-- built-in modules: `term` (`key wait_key clear sleep hide_cursor show_cursor`), `random`
-  (`int float choice shuffle seed`), `math`, `time`; `print(x, pos: p)` draws at a terminal position
+- the standard library below; `print(x, pos: p)` draws at a terminal position
 - builtins: `print len str int float bool list map range type input abs min max exit panic`
+- methods: `str` (`upper lower trim split lines contains starts_with ends_with find count replace repeat
+  chars slice pad_left pad_right is_digit is_alpha is_space`), `list` (`push pop insert contains index_of
+  count reverse sort sort(key) join clear copy slice map filter reduce sum any all find enumerate`),
+  `map` (`keys values items contains get remove clear copy`), `range` (`contains to_list`), `to_str` on anything
 - errors with the source line, a caret and the chain of calls
 
 Next: macros.
+
+## Standard library
+
+Small on purpose. Anything that can fail for outside reasons returns a `result` (or an `option`);
+mistakes in the program itself (a bad regex, a wrong argument type) are runtime errors.
+
+| Module | Functions |
+| --- | --- |
+| `fs` | `read(path)`, `write(path, text)`, `append(path, text)`, `exists`, `is_dir`, `list(dir)`, `mkdir` (with parents), `remove`, `join(a, b, ...)` |
+| `os` | `env(name)` → option, `cwd()`, `platform`, `run(cmd, ...args)` → result with the output |
+| `json` | `parse(text)` → result (objects keep key order, numbers are int or float), `to_str(value, indent: 2)` (structs become objects) |
+| `re` | `matches(p, s)`, `find` → option, `find_all`, `groups` → option, `replace(p, s, with)` (`$1` for groups), `split` |
+| `math` | `pi e inf`, `sqrt sin cos tan asin acos atan atan2 hypot log log10 log2 exp pow`, `floor ceil round(x[, digits])`, `clamp`, `is_nan` |
+| `random` | `int(lo..hi)` / `int(lo, hi)`, `float()`, `choice`, `shuffle`, `seed` |
+| `time` | `now()` (seconds), `sleep(ms)`, `format([t, layout])` with `%Y %m %d %H %M %S` |
+| `term` | `key()` (nil if no key), `wait_key()`, `clear()`, `sleep(ms)`, `hide_cursor()`, `show_cursor()` |
 
 ## Speed
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"os"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -44,6 +45,9 @@ type VM struct {
 	numOps                                         bool // int or float got an operator method: skip the int fast paths
 
 	modules map[string]*ModuleObj
+	regexps map[string]*regexp.Regexp
+
+	resultType, optionType *TypeObj // from the prelude, for library functions
 	// Importer loads "import name" for code in file fromFile; nil means
 	// built-in modules only.
 	Importer  func(name, fromFile string) (*ModuleObj, error)
