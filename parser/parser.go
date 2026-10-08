@@ -357,6 +357,10 @@ func (p *parser) parseStmt() ast.Stmt {
 	var s ast.Stmt
 	switch p.tok.Type {
 	case token.FN:
+		if p.peek.Type == token.LPAREN { // fn(...) without a name is an expression
+			s = p.parseSimpleStmt()
+			break
+		}
 		s = p.parseFn()
 	case token.STRUCT:
 		s = p.parseStruct()
@@ -414,7 +418,11 @@ func (p *parser) parseSimpleStmt() ast.Stmt {
 		s := &ast.ContinueStmt{At: p.tok.Pos}
 		p.next()
 		return s
-	case token.FN, token.STRUCT, token.IMPL, token.ENUM, token.IMPORT, token.MACRO, token.WHILE, token.FOR:
+	case token.FN:
+		if p.peek.Type != token.LPAREN { // fn(...) is an anonymous function
+			p.fail(p.tok.Pos, "'fn' must start on its own line")
+		}
+	case token.STRUCT, token.IMPL, token.ENUM, token.IMPORT, token.MACRO, token.WHILE, token.FOR:
 		p.fail(p.tok.Pos, "'"+p.tok.Type.String()+"' must start on its own line")
 	}
 
@@ -557,6 +565,27 @@ func (p *parser) parseFn() *ast.FnDecl {
 		fn.Body = p.parseBlock("the function signature")
 	}
 	// No body: a required method that every inheritor must implement.
+	return fn
+}
+
+// parseFnLit parses an anonymous function. With the body on the same line
+// (fn(x): x * 2) an expression body is the result; an indented body works
+// like the body of a named function and needs return.
+func (p *parser) parseFnLit() ast.Expr {
+	pos := p.expect(token.FN, "'fn'").Pos
+	if p.tok.Type != token.LPAREN {
+		p.fail(p.tok.Pos, "expected '(' after 'fn' (an anonymous function), found "+p.describe(p.tok))
+	}
+	fn := &ast.FnLit{At: pos, Params: p.parseParams(true)}
+	if p.tok.Type == token.IDENT {
+		fn.Result = p.parseType()
+	}
+	fn.Body = p.parseBlock("the parameters of fn")
+	if fn.Body.Inline {
+		if es, ok := fn.Body.Stmts[0].(*ast.ExprStmt); ok {
+			fn.Body.Stmts[0] = &ast.ReturnStmt{At: es.X.Pos(), Value: es.X}
+		}
+	}
 	return fn
 }
 
@@ -908,6 +937,8 @@ func (p *parser) parsePrimary() ast.Expr {
 		return p.parseIf()
 	case token.MATCH:
 		return p.parseMatch()
+	case token.FN:
+		return p.parseFnLit()
 	}
 	// "a +" at the end of a line continues on the next line, so the real
 	// mistake is the dangling operator, not what follows it.

@@ -1382,6 +1382,8 @@ func (c *compiler) expr(e ast.Expr) {
 		c.ifExpr(x, true)
 	case *ast.MatchExpr:
 		c.match(x, true)
+	case *ast.FnLit:
+		c.function("<fn>", x.Params, x.Result, x.Body, x.At)
 	case *ast.Scope:
 		c.expr(x.X)
 		c.emit(vm.OpScope, c.strConst(x.Name), x.At, 0)

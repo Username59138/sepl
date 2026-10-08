@@ -37,6 +37,8 @@ Works now:
 - `if` and `match` as statements and expressions; match on values, several values, ranges, `_`
 - `while`, `for ... in` over lists, strings, maps, ranges; `break`, `continue`
 - functions, recursion, named and variadic (`...rest`) arguments, functions and methods as values
+- anonymous functions: `fn(x): x * 2` returns its expression (`list.map(fn(x): x * x)`, `fn(a): fn(b): a + b`);
+  with an indented body they work like named functions and need `return`. Parameters and result can be typed
 - f-strings, `+=` and friends, `in` / `not in`
 - top-level code runs first, then `main(args)`; an int returned by `main` is the exit code
 - structs: `let` fields (defaults are computed for every new object), `const x` (given at creation,

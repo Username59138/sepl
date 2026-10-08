@@ -483,3 +483,11 @@ func BenchmarkParser(b *testing.B) {
 		}
 	}
 }
+
+func TestFnLiterals(t *testing.T) {
+	expr(t, "fn(x): x * 2", "(fn (x) (do (return (* x 2))))")
+	expr(t, "fn(a int, ...r) str: a", "(fn (a:int ...r) -> str (do (return a)))")
+	expr(t, "fn(a): fn(b): a + b", "(fn (a) (do (return (fn (b) (do (return (+ a b)))))))")
+	expr(t, "f(fn(x): x, 2)", "(call f (fn (x) (do (return x))) 2)")
+	parseErr(t, "let f = fn x: x", 1, 12, "expected '(' after 'fn'")
+}

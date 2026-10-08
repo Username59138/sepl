@@ -197,6 +197,16 @@ type (
 		Subject Expr
 		Arms    []*MatchArm
 	}
+
+	// FnLit is an anonymous function: fn(x): x * 2, or fn(x) with an
+	// indented body. The parser turns an inline expression body into a
+	// return, so fn(x): x * 2 gives back x * 2.
+	FnLit struct {
+		At     token.Pos
+		Params []*Param
+		Result *TypeExpr
+		Body   *Block
+	}
 )
 
 // FStringPart is literal text (X == nil) or an embedded expression.
@@ -245,6 +255,7 @@ func (x *Try) Pos() token.Pos       { return x.At }
 func (x *MacroCall) Pos() token.Pos { return x.At }
 func (x *IfExpr) Pos() token.Pos    { return x.At }
 func (x *MatchExpr) Pos() token.Pos { return x.At }
+func (x *FnLit) Pos() token.Pos     { return x.At }
 
 func (*Ident) exprNode()     {}
 func (*IntLit) exprNode()    {}
@@ -266,6 +277,7 @@ func (*Try) exprNode()       {}
 func (*MacroCall) exprNode() {}
 func (*IfExpr) exprNode()    {}
 func (*MatchExpr) exprNode() {}
+func (*FnLit) exprNode()     {}
 
 // ---------------------------------------------------------------- patterns
 

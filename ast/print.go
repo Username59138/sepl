@@ -215,6 +215,14 @@ func (p *printer) node(n Node) {
 		p.w("(" + n.Name + "!")
 		p.exprs(n.Args)
 		p.w(")")
+	case *FnLit:
+		p.w("(fn " + paramsString(n.Params))
+		if n.Result != nil {
+			p.w(" -> " + typeString(n.Result))
+		}
+		p.w(" ")
+		p.block(n.Body)
+		p.w(")")
 	case *IfExpr:
 		p.w("(if ")
 		p.node(n.Cond)
